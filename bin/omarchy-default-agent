@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # omarchy:summary=Set and launch the default coding agent
-# omarchy:args=[pi|omp|opencode|ori|claude|codex|grok|openclaw|agy|hermes|copilot|crush|cursor-agent|muse]
+# omarchy:args=[pi|omp|opencode|ori|claude|codex|grok|openclaw|agy|hermes|copilot|crush|cursor-agent|muse|mcode]
 # omarchy:examples=omarchy default agent | omarchy default agent codex | omarchy default agent claude
 
 installing=false
@@ -42,8 +42,16 @@ muse | muse-code | musecode)
   agent_package="http:muse[url=https://api.meta.ai/muse-launcher.sh,bin=muse,version_list_url=https://api.meta.ai/muse-code/channels/muse-stable,version_json_path=.version]"
   ;;
 cursor | cursor-agent) agent="cursor-agent"; name="Cursor CLI" ;;
+mcode | minimax-code | minimax)
+  agent="mcode"; name="MiniMax Code"
+  # MiniMax Code installs itself under a private npm prefix and shims the
+  # `mcode` binary onto PATH on first run; `npm:@minimax-ai/code` is the
+  # package mise pulls. The user-installed copy under ~/.minimax-code/bin
+  # always wins because mise shims precede ~/.local/bin on PATH.
+  agent_package="npm:@minimax-ai/code"
+  ;;
 *)
-  echo "Usage: omarchy-default-agent <pi|omp|opencode|ori|claude|codex|grok|openclaw|agy|hermes|copilot|crush|cursor-agent|muse>"
+  echo "Usage: omarchy-default-agent <pi|omp|opencode|ori|claude|codex|grok|openclaw|agy|hermes|copilot|crush|cursor-agent|muse|mcode>"
   exit 1
   ;;
 esac

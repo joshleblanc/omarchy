@@ -118,6 +118,7 @@ agy_package="antigravity-cli"
 ori_package="github:OpenRouterLabs/ori-releases"
 cursor_agent_package="cursor-agent"
 muse_package="http:muse[url=https://api.meta.ai/muse-launcher.sh,bin=muse,version_list_url=https://api.meta.ai/muse-code/channels/muse-stable,version_json_path=.version]"
+mcode_package="npm:@minimax-ai/code"
 
 assert_lazy_stub() {
   local package=$1
@@ -386,6 +387,9 @@ declare -A expected_agents=(
   [muse]="muse"
   [muse-code]="muse"
   [musecode]="muse"
+  [mcode]="mcode"
+  [minimax-code]="mcode"
+  [minimax]="mcode"
 )
 
 declare -A expected_packages=(
@@ -401,6 +405,7 @@ declare -A expected_packages=(
   [copilot]="copilot"
   [cursor-agent]="$cursor_agent_package"
   [muse]="$muse_package"
+  [mcode]="$mcode_package"
 )
 
 for selection in "${!expected_agents[@]}"; do
