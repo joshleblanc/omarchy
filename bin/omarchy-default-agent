@@ -44,11 +44,13 @@ muse | muse-code | musecode)
 cursor | cursor-agent) agent="cursor-agent"; name="Cursor CLI" ;;
 mcode | minimax-code | minimax)
   agent="mcode"; name="MiniMax Code"
-  # MiniMax Code installs itself under a private npm prefix and shims the
-  # `mcode` binary onto PATH on first run; `npm:@minimax-ai/code` is the
-  # package mise pulls. The user-installed copy under ~/.minimax-code/bin
-  # always wins because mise shims precede ~/.local/bin on PATH.
-  agent_package="npm:@minimax-ai/code"
+  # mcode reaches the system through a dedicated installer rather than a
+  # straight mise package: its npm tarball needs better-sqlite3's optional
+  # native binding and its postinstall script, both of which mise's npm:
+  # shorthand drops, so the binary would install and then crash on first
+  # sqlite touch. The official mcode self-update, when it later runs,
+  # supersedes this copy by version and the installer steps aside.
+  agent_installer="omarchy-install-ai-mcode"
   ;;
 *)
   echo "Usage: omarchy-default-agent <pi|omp|opencode|ori|claude|codex|grok|openclaw|agy|hermes|copilot|crush|cursor-agent|muse|mcode>"
