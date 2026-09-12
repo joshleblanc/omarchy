@@ -55,7 +55,7 @@ light surfaces — and the bar glyph stands in when there is none.
 | `claude` | Anthropic's OAuth usage endpoint (5-hour session + 7-day weekly) | `~/.claude/projects` transcripts, opencode sessions on an Anthropic provider, plus `stats-cache.json` and `history.jsonl` as fallback |
 | `codex` | The Codex app-server RPC | native Codex CLI session files (plus pi and opencode sessions) |
 | `fireworks` | Estimated prepaid balance: configured funding minus rated account costs | Fireworks billing API, grouped by day and model for the last 30 days |
-| `mcode` | — | MiniMax Code transcripts under `~/.minimax/v2/sessions/`, grouped by day and model for the last 30 days |
+| `mcode` | The MiniMax platform coding-plan endpoint (`/v1/api/openplatform/coding_plan/remains`): 5-hour session + weekly windows per model, the user's primary coding quota under `model_name == "general"` | MiniMax Code transcripts under `~/.minimax/v2/sessions/`, grouped by day and model for the last 30 days |
 
 Claude limits need a signed-in CLI; without credentials the panel says so and
 falls back to local stats only. A non-default Claude directory is honored via
@@ -65,8 +65,10 @@ default root is `~/.minimax`. Fireworks reads
 `~/.fireworks/auth.ini` (which `firectl set-api-key` creates), then the key
 opencode stores in `~/.local/share/opencode/auth.json` when Fireworks is
 signed in there. mcode surfaces an auth prompt when no
-`~/.minimax/auth/prod/{en,cn}/mcode-public/` record is on disk, but it has no
-OAuth rate-limit endpoint, so the panel only renders local stats for it.
+`~/.minimax/auth/prod/{en,cn}/mcode-public/` record is on disk, and once the
+collector has cached a recent limits payload the meter keeps drawing — the
+panel will only complain about limits when the cache has been cleared or the
+token is rejected on the next fetch.
 
 ### Fireworks balance
 
