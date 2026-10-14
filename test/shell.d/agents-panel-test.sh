@@ -7,6 +7,14 @@ source "$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)/base-test.sh"
 run_node_test <<'JS'
 const fs = require('fs')
 const panelSource = fs.readFileSync(root + '/shell/plugins/agents/Panel.qml', 'utf8')
+const limitWindowSource = panelSource.match(/function limitWindow\([^]*?\n  \}/)[0]
+const limitWindow = new Function('root', 'windowTitle', 'return (' + limitWindowSource + ')')(
+  { nowMs: Date.parse('2026-10-14T07:00:00Z') }, label => label
+)
+assert(limitWindow('5h', 0, '', '', true).unlimited === true, 'agents panel preserves an unlimited allowance')
+assert(limitWindow('Weekly', .5, '', '', false).unlimited === false, 'agents panel retains ordinary metered allowances')
+const expiredUnlimited = limitWindow('5h', 0, '2020-01-01T00:00:00Z', '', true)
+assert(expiredUnlimited.unlimited && expiredUnlimited.resetAt === '', 'expired reset timestamps do not invent a cap for unlimited allowances')
 
 assert(/function launchAgent\(\)/.test(panelSource), 'agents panel launches the default agent')
 assert(/root\.bar\.run\("omarchy-agent --pick"\)/.test(panelSource), 'agents panel uses the desktop agent launcher')
