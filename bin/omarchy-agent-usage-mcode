@@ -47,7 +47,7 @@ LIMITS_REUSE_SECONDS = 900
 
 
 def expand_path(value: str) -> Path:
-  return Path(os.path.expandvars(os.path.expanduser(value))).resolve()
+  return Path(os.path.abspath(value))
 
 
 def config_root() -> Path:
@@ -55,8 +55,8 @@ def config_root() -> Path:
     value = os.environ.get(key, "").strip()
     if value:
       return expand_path(value)
-  profile = os.environ.get("__MAVIS_RUNTIME_PROFILE", "").strip()
-  return (Path.home() / (".minimax-" + profile if profile else ".minimax")).resolve()
+  profile = os.environ.get("__MAVIS_RUNTIME_PROFILE", "").strip() if os.environ.get("__MAVIS_ALLOW_LEGACY_RUNTIME_ENV") == "1" else ""
+  return Path(os.path.abspath(Path.home() / (".minimax-" + profile if profile else ".minimax")))
 
 
 def session_root() -> Path:
@@ -319,6 +319,9 @@ def auth_status() -> dict[str, str]:
 
 
 def resolve_region() -> str:
+  inherited = os.environ.get("MAVIS_REGION")
+  if inherited in ("cn", "en"):
+    return inherited
   try:
     prefs = json.loads((config_root() / "preferences" / "mcode-region.json").read_text())
     if prefs.get("version") == 1:
@@ -327,7 +330,18 @@ def resolve_region() -> str:
         return value
   except (OSError, ValueError, AttributeError):
     pass
-  return "cn"
+  reusable = []
+  for region in ("cn", "en"):
+    try:
+      path = config_root() / "auth" / "prod" / region / "mcode-public" / "auth-state.json"
+      state = json.loads(path.read_text())
+      if state.get("buildEnv") == "prod" and state.get("region") == region and state.get("status") in (
+        "authorizing", "authenticated", "refreshing", "scope_upgrade_required", "expired"
+      ):
+        reusable.append(region)
+    except (OSError, ValueError, AttributeError):
+      pass
+  return reusable[0] if len(reusable) == 1 else "cn"
 
 
 def auth_record_dir() -> tuple[Path, str]:
@@ -430,8 +444,10 @@ def personal_group(token: str, region: str) -> str:
   workspace = matrix("/matrix/api/v1/user/get_user_extra_info", str(user_id), b"{}")
   groups = workspace.get("workspaces") or workspace.get("data", {}).get("workspaces") or []
   for group in groups:
-    if isinstance(group, dict) and group.get("workspace_type") == 0 and group.get("op_group_id"):
-      return str(group["op_group_id"])
+    if isinstance(group, dict) and group.get("workspace_type") == 0:
+      group_id = group.get("op_group_id") or group.get("data", {}).get("op_group_id")
+      if group_id:
+        return str(group_id)
   raise ValueError("MiniMax personal billing group unavailable")
 
 

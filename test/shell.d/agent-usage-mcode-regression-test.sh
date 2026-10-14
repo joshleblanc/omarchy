@@ -18,7 +18,7 @@ scratch = tempfile.TemporaryDirectory()
 root = Path(scratch.name)
 os.environ['HOME'] = str(root / 'home')
 os.environ['XDG_CACHE_HOME'] = str(root / 'cache')
-for key in ('MCODE_HOME', 'MINIMAX_DATA_DIR', 'MAVIS_DATA_DIR', '__MAVIS_RUNTIME_PROFILE'):
+for key in ('MCODE_HOME', 'MINIMAX_DATA_DIR', 'MAVIS_DATA_DIR', '__MAVIS_RUNTIME_PROFILE', '__MAVIS_ALLOW_LEGACY_RUNTIME_ENV', 'MAVIS_REGION'):
   os.environ.pop(key, None)
 home = root / 'data'
 os.environ['MINIMAX_DATA_DIR'] = str(home)
@@ -66,7 +66,7 @@ real_build_opener = urllib.request.build_opener
 c.urllib.request.build_opener = lambda *handlers: real_build_opener(FixtureHTTPS(), *handlers)
 
 def credential(token='fixture-A', region='en', directory=None):
-  directory = Path(directory or os.environ['MINIMAX_DATA_DIR']).resolve()
+  directory = Path(os.path.abspath(directory or os.environ['MINIMAX_DATA_DIR']))
   (directory / 'preferences').mkdir(parents=True, exist_ok=True)
   (directory / 'preferences/mcode-region.json').write_text(json.dumps({'version': 1, 'regions': {'prod': region}}))
   auth = directory / 'auth/prod' / region / 'mcode-public'
@@ -200,6 +200,37 @@ def no_credentials():
   record = run('--force')
   assert record['limits'] == [] and record['usageStatusText'] == 'Waiting for auth'
 check('MiniMax recognizes logout despite a surviving auth directory', no_credentials)
+os.environ['XDG_CACHE_HOME'] = str(root / 'cache')
+
+def lexical_symlink():
+  linked = root / 'linked-data'
+  linked.symlink_to(home, target_is_directory=True)
+  os.environ['MINIMAX_DATA_DIR'] = str(linked)
+  credential('linked-account')
+  assert c.config_root() == linked and c.load_access_token() == 'linked-account'
+check('MiniMax preserves the native lexical credential identity through symlinks', lexical_symlink)
+os.environ['MINIMAX_DATA_DIR'] = str(home)
+def inherited_region():
+  credential('global-account', 'en')
+  credential('china-account', 'cn')
+  os.environ['MAVIS_REGION'] = 'en'
+  assert c.load_access_token() == 'global-account'
+check('MiniMax inherited runtime region takes precedence over saved preferences', inherited_region)
+os.environ.pop('MAVIS_REGION')
+def reusable_region():
+  (home / 'preferences/mcode-region.json').unlink()
+  state_path = home / 'auth/prod/en/mcode-public/auth-state.json'
+  state_path.write_text('{"buildEnv":"prod","region":"en","status":"authenticated"}')
+  assert c.load_access_token() == 'global-account'
+check('MiniMax follows a sole reusable region when preferences are absent', reusable_region)
+
+os.environ.pop('MINIMAX_DATA_DIR')
+os.environ.pop('MAVIS_DATA_DIR')
+os.environ['__MAVIS_RUNTIME_PROFILE'] = 'work'
+check('MiniMax ignores inactive legacy profile variables', lambda: assert_true(c.config_root() == Path.home() / '.minimax'))
+os.environ['__MAVIS_ALLOW_LEGACY_RUNTIME_ENV'] = '1'
+check('MiniMax honors an explicitly enabled legacy runtime profile', lambda: assert_true(c.config_root() == Path.home() / '.minimax-work'))
+
 server.shutdown()
 scratch.cleanup()
 raise SystemExit(bool(failures))
