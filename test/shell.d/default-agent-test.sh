@@ -810,6 +810,10 @@ assert_launch hermes env -u HERMES_SESSION_SOURCE hermes chat --yolo --tui "--qu
 assert_launch agy agy --dangerously-skip-permissions --prompt-interactive "Review this project"
 assert_launch copilot copilot --allow-all --interactive "Review this project"
 assert_launch kimi kimi --prompt "Review this project"
+printf '%s\n' mcode >"$agent_file"
+omarchy-agent-prompt '-n --help; echo literal'
+assert_launched mcode "keeps an option-like prompt literal" mcode -- "-n --help; echo literal"
+
 pass "agent launcher adapts initial prompts for every supported agent"
 
 literal_muse_prompt=$'--disable-sandbox !Crash {$(touch must-not-run)}\ntrailing\\ '

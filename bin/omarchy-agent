@@ -23,12 +23,7 @@ while (($#)); do
       prompt=${2:?--prompt needs a value}
       shift 2
       ;;
-    mcode)
-  # The TUI has no no-approval flag; permission options belong to exec mode.
-  command=(mcode)
-  [[ -n ${prompt:-} ]] && command+=(-- "$prompt")
-  ;;
-*)
+    *)
       echo "Unexpected argument: $1" >&2
       echo "To pass a prompt: omarchy agent prompt \"$*\"" >&2
       exit 1
@@ -142,6 +137,11 @@ kimi)
   else
     command=(kimi --yolo)
   fi
+  ;;
+mcode)
+  # The TUI has no no-approval flag; permission options belong to exec mode.
+  command=(mcode)
+  [[ -n ${prompt:-} ]] && command+=(-- "$prompt")
   ;;
 *)
   echo "Unsupported default agent: $agent" >&2

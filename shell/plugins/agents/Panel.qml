@@ -1949,7 +1949,7 @@ Panel {
       id: compactValueMetrics
       font.family: root.fontFamily
       font.pixelSize: Style.font.bodySmall
-      text: "00h 00m"
+      text: compact.window && compact.window.unlimited ? "Unlimited" : "00h 00m"
     }
 
     // How long until the window resets. The meter says how full it is; the

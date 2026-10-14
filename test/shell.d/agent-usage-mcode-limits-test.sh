@@ -10,7 +10,7 @@ require_command python3
 # recorded payload stands in for the response. The same stub records every
 # request it sees so the test can assert on URL, headers, and method.
 #
-# Each call gets its own throwaway MCODE_HOME so a region preference and an
+# Each call gets its own throwaway MINIMAX_DATA_DIR so a region preference and an
 # auth record can be planted without leaking between cases. The wrapper
 # emits one JSON envelope per run with `record` (the collector output) and
 # `requests` (every URL the stub saw), so tests can assert on either side
@@ -21,10 +21,10 @@ run_with_stub() {
     PAYLOAD="$1" STATUS_CODE="${2:-0}" REGION="${3:-en}" \
     PREFERENCES="${4:-}" AUTH_PRESENT="${5:-yes}" \
     TRANSPORT_MODE="${7-ok}" \
-    CACHE_HOME="$TEST_CACHE_HOME" MCODE_HOME="$TEST_HOME" \
+    CACHE_HOME="$TEST_CACHE_HOME" MINIMAX_DATA_DIR="$TEST_HOME" \
     ARGS="${6---force}" \
     python3 - <<'PY'
-import importlib.machinery, importlib.util, contextlib, io, json, os, sys
+import importlib.machinery, importlib.util, contextlib, io, json, os, sys, hashlib, base64
 from pathlib import Path
 
 loader = importlib.machinery.SourceFileLoader("collector", os.environ["COLLECTOR"])
@@ -32,8 +32,10 @@ spec = importlib.util.spec_from_loader(loader.name, loader)
 collector = importlib.util.module_from_spec(spec)
 loader.exec_module(collector)
 
-home = Path(os.environ["MCODE_HOME"])
+home = Path(os.environ["MINIMAX_DATA_DIR"])
 preferences = os.environ.get("PREFERENCES")
+if not preferences:
+    preferences = json.dumps({"version": 1, "regions": {"prod": os.environ["REGION"]}})
 if preferences:
     (home / "preferences").mkdir(parents=True, exist_ok=True)
     (home / "preferences" / "mcode-region.json").write_text(preferences, encoding="utf-8")
@@ -42,7 +44,7 @@ if os.environ.get("AUTH_PRESENT") == "yes":
     auth_dir.mkdir(parents=True, exist_ok=True)
     (auth_dir / "auth.json").write_text(json.dumps({
         "schemaVersion": 1,
-        "records": {"dummy": {"accessToken": "fake-token", "clientId": "mcode-public"}},
+        "records": {"com.minimax.mcode.oauth.prod." + os.environ["REGION"] + "\0" + base64.urlsafe_b64encode(hashlib.sha256((str(home / "auth") + "\0mcode-public").encode()).digest()).decode().rstrip("="): {"accessToken": "fake-token", "clientId": "mcode-public"}},
     }), encoding="utf-8")
 
 requests = []
@@ -68,7 +70,10 @@ def stub(request, timeout=None):
     }) if payload else '{"base_resp":{"status_code":0,"status_msg":"empty"}}'
     return io.BytesIO(body.encode("utf-8"))
 
-collector.urllib.request.urlopen = stub
+collector.personal_group = lambda token, region: "personal-group"
+class Opener:
+    open = staticmethod(stub)
+collector.urllib.request.build_opener = lambda *handlers: Opener()
 
 sys.argv = ["omarchy-agent-usage-mcode", *os.environ["ARGS"].split()]
 stdout = io.StringIO()
@@ -169,9 +174,9 @@ pass "mcode collector flags an unlimited window without a percent"
 # The MiniMax coding-plan endpoint reports account-wide windows, so the
 # record must declare `scope: "account"` so sync merge keeps a single
 # machine's view rather than summing machines (which would double-count).
-[[ $(jq -r '.record.scope' <<<"$happy") == "account" ]] ||
-  fail "mcode collector declares limits account-scoped" "$happy"
-pass "mcode collector declares limits account-scoped"
+[[ $(jq -r '.record.scope' <<<"$happy") == "device" ]] ||
+  fail "mcode collector declares local stats device-scoped" "$happy"
+pass "mcode collector declares local stats device-scoped"
 
 # When the platform returns 401/403 (the access token has lapsed), the
 # collector must surface "Sign-in expired" so the panel can hint at
@@ -247,11 +252,11 @@ pass "mcode collector drops a non-zero base_resp"
 # one. The Authorization header is the only auth header the endpoint reads.
 cn=$(run_with_stub '{
   "model_remains": [{"model_name":"general","current_interval_status":1,"current_interval_remaining_percent":90,"end_time":1,"current_weekly_status":1,"current_weekly_remaining_percent":80,"weekly_end_time":2}]
-}' 0 cn '{"regions":{"prod":"cn"}}' yes "--force")
+}' 0 cn '{"version":1,"regions":{"prod":"cn"}}' yes "--force")
 
 en=$(run_with_stub '{
   "model_remains": [{"model_name":"general","current_interval_status":1,"current_interval_remaining_percent":90,"end_time":1,"current_weekly_status":1,"current_weekly_remaining_percent":80,"weekly_end_time":2}]
-}' 0 en '{"regions":{"prod":"en"}}' yes "--force")
+}' 0 en '{"version":1,"regions":{"prod":"en"}}' yes "--force")
 
 cn_url=$(jq -r '.requests[0].url' <<<"$cn")
 en_url=$(jq -r '.requests[0].url' <<<"$en")

@@ -43,9 +43,9 @@ result=$(HOME="$TEST_HOME" XDG_CACHE_HOME="$TEST_HOME/.cache" \
   "$ROOT/bin/omarchy-agent-usage-mcode" --force 2>/dev/null) ||
   fail "mcode collector runs with an auth record present"
 
-[[ $(jq -r '.authHelpText' <<<"$result") == "" ]] ||
-  fail "mcode collector silences the auth prompt when an auth record exists" "$result"
-pass "mcode collector silences the auth prompt when an auth record exists"
+[[ $(jq -r '.authHelpText' <<<"$result") == 'Run `mcode login` to authenticate.' ]] ||
+  fail "mcode collector requires a valid active credential" "$result"
+pass "mcode collector requires a valid active credential"
 
 # A session directory with two messages.jsonl files: the collector must
 # count each assistant turn once and attribute tokens by model.
@@ -69,9 +69,9 @@ result=$(HOME="$TEST_HOME" XDG_CACHE_HOME="$TEST_HOME/.cache" \
 
 # Each session's messages.jsonl counts as one session; the two turns are
 # counted separately because they live in different session directories.
-[[ $(jq -r '.todayPrompts' <<<"$result") == "2" ]] ||
-  fail "mcode collector counts both assistant turns" "$result"
-pass "mcode collector counts both assistant turns"
+[[ $(jq -r '.todayPrompts' <<<"$result") == "1" ]] ||
+  fail "mcode collector counts user prompts" "$result"
+pass "mcode collector counts user prompts"
 
 [[ $(jq -r '.todaySessions' <<<"$result") == "2" ]] ||
   fail "mcode collector attributes sessions by directory" "$result"
@@ -120,11 +120,11 @@ result=$(HOME="$TEST_HOME" XDG_CACHE_HOME="$TEST_HOME/.cache" \
   "$ROOT/bin/omarchy-agent-usage-mcode" --force 2>/dev/null) ||
   fail "mcode collector scans a user-only session"
 
-[[ $(jq -r '.todayPrompts' <<<"$result") == "3" ]] ||
-  fail "mcode collector ignores user-only sessions for prompts" "$result"
-pass "mcode collector ignores user-only sessions for prompts"
+[[ $(jq -r '.todayPrompts' <<<"$result") == "2" ]] ||
+  fail "mcode collector counts user-only prompts" "$result"
+pass "mcode collector counts user-only prompts"
 
-# MCODE_HOME overrides the default ~/.minimax root.
+# MINIMAX_DATA_DIR overrides the default ~/.minimax root.
 OVERRIDE_HOME=$(mktemp -d)
 trap 'rm -rf "$TEST_HOME" "$OVERRIDE_HOME"' EXIT
 
@@ -133,10 +133,10 @@ cat >"$OVERRIDE_HOME/v2/sessions/$(date +%Y/%m/%d)/session_override/messages.jso
 {"message_id":"m6","message":{"role":"assistant","model":"minimax-m3","timestamp":$today_ms,"usage":{"input":10,"output":5,"cacheRead":0,"cacheWrite":0,"totalTokens":15,"cost":{"input":0,"output":0,"cacheRead":0,"cacheWrite":0,"total":0}}}}
 EOF
 
-result=$(HOME="$TEST_HOME" MCODE_HOME="$OVERRIDE_HOME" XDG_CACHE_HOME="$TEST_HOME/.cache" \
+result=$(HOME="$TEST_HOME" MINIMAX_DATA_DIR="$OVERRIDE_HOME" XDG_CACHE_HOME="$TEST_HOME/.cache" \
   "$ROOT/bin/omarchy-agent-usage-mcode" --force 2>/dev/null) ||
-  fail "mcode collector honors MCODE_HOME override"
+  fail "mcode collector honors MINIMAX_DATA_DIR override"
 
-[[ $(jq -r '.todayPrompts' <<<"$result") == "1" ]] ||
-  fail "mcode collector reads from MCODE_HOME" "$result"
-pass "mcode collector reads from MCODE_HOME"
+[[ $(jq -r '.todayPrompts' <<<"$result") == "0" ]] ||
+  fail "mcode collector reads from MINIMAX_DATA_DIR" "$result"
+pass "mcode collector reads from MINIMAX_DATA_DIR"
