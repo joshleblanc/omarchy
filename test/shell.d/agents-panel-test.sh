@@ -16,6 +16,20 @@ assert(limitWindow('Weekly', .5, '', '', false).unlimited === false, 'agents pan
 const expiredUnlimited = limitWindow('5h', 0, '2020-01-01T00:00:00Z', '', true)
 assert(expiredUnlimited.unlimited && expiredUnlimited.resetAt === '', 'expired reset timestamps do not invent a cap for unlimited allowances')
 
+const signInFunctions = ['supportsSignIn', 'needsSignIn', 'otherTrouble'].map(name => {
+  const match = panelSource.match(new RegExp('function ' + name + '\\([^]*?\\n  \\}'))
+  return match ? match[0] : ''
+}).join('\n')
+const signIn = new Function('addProviders', signInFunctions + '\nreturn {needsSignIn, otherTrouble}')(
+  [{providerId: 'claude'}, {providerId: 'codex'}, {providerId: 'grok'}]
+)
+for (const id of ['claude', 'codex', 'grok'])
+  assert(signIn.needsSignIn({providerId: id, usageStatusText: 'Sign-in expired'}), id + ' retains its supported account sign-in action')
+assert(signIn.needsSignIn({usageStatusText: 'Sign-in expired'}), 'managed account rows retain their sign-in action')
+for (const status of ['Sign-in expired', 'Waiting for auth']) {
+  assert(!signIn.needsSignIn({providerId: 'mcode', usageStatusText: status}), 'MiniMax does not invoke an unsupported account login for ' + status)
+  assert(signIn.otherTrouble({providerId: 'mcode', usageStatusText: status}) === status, 'MiniMax keeps its login guidance visible for ' + status)
+}
 assert(/function launchAgent\(\)/.test(panelSource), 'agents panel launches the default agent')
 assert(/root\.bar\.run\("omarchy-agent --pick"\)/.test(panelSource), 'agents panel uses the desktop agent launcher')
 assert(/if \(buttonCode === Qt\.RightButton\) root\.launchAgent\(\)/.test(panelSource), 'agents right click launches the agent')

@@ -210,6 +210,6 @@ every transcript still on disk.
 
 ## MiniMax Code
 
-MiniMax Code reads `MINIMAX_DATA_DIR`, then `MAVIS_DATA_DIR`, otherwise `~/.minimax` (or an explicitly enabled legacy runtime profile’s directory). It follows MiniMax’s inherited region, saved China/global preference, or sole reusable sign-in, reads the exact active OAuth record, and resolves the personal billing workspace before fetching token-plan limits. Credentials are read only and requests never follow redirects. Start MiniMax Code or run `mcode login` when sign-in expires.
+MiniMax Code reads `MINIMAX_DATA_DIR`, then `MAVIS_DATA_DIR`, otherwise `~/.minimax` (or an explicitly enabled legacy runtime profile’s directory). It follows MiniMax’s inherited region, saved China/global preference, or sole reusable sign-in, reads the exact active OAuth record, and resolves the personal billing workspace before fetching token-plan limits. Credentials are read only and requests never follow redirects. Start MiniMax Code or run `mcode login` when sign-in expires; the panel displays that guidance without offering the account manager’s unsupported login action.
 
 Local transcript statistics add across synced devices. Limits remain local account measurements, cached separately by data directory, region, and bearer. An ordinary refresh reuses recent measurements; `--force` and `--limits-only` request fresh limits. Failed requests retain the same credential’s previous limits with their original timestamp and stale marker.
